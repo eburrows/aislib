@@ -1,0 +1,11 @@
+!AIVDM,1,1,,A,15RTgt0PAso;90TKcjM8h6g208CQ,0*4A
+{"turn":129,"lon":-74037232,"second":33,"rxtime":"1929:07:28T05:22:06Z","status":"Under way using engine","speed":123,"mmsi":371798000,"repeat":0,"course":-185.6,"msgtype":1,"radio":34017,"raim":0,"maneuver":"Not available","accuracy":1,"lat":29028980,"heading":215}
+!AIVDM,1,1,,A,16SteH0P00Jt63hHaa6SagvJ087r,0*42
+{"turn":128,"lon":-42454920,"second":13,"rxtime":"1929:07:28T05:22:06Z","status":"Under way using engine","speed":0,"mmsi":440348000,"repeat":0,"course":93.4,"msgtype":1,"radio":33274,"raim":0,"maneuver":"Not available","accuracy":0,"lat":25848090,"heading":511}
+!AIVDM,1,1,,B,25Cjtd0Oj;Jp7ilG7=UkKBoB0<06,0*60
+{"turn":127,"lon":-42975688,"second":41,"rxtime":"1929:07:28T05:22:06Z","status":"Under way using engine","speed":139,"mmsi":356302000,"repeat":0,"course":87.7,"msgtype":2,"radio":49158,"raim":0,"maneuver":"Not available","accuracy":0,"lat":24235416,"heading":91}
+!AIVDM,1,1,,A,38Id705000rRVJhE7cl9n;160000,0*40
+{"turn":0,"lon":-45796516,"rxtime":"1929:07:28T05:22:06Z","status":"Moored","speed":0,"mmsi":563808000,"repeat":0,"course":-157.6,"msgtype":3,"radio":0,"raim":0,"accuracy":1,"maneuver":"Not available","lat":22146000,"heading":352}
+!AIVDM,2,1,4,A,55OVgj02:MnML=SSSS<50j0du8D6222222222216GaHDD5uU0LlhC`41A4Sp,0*6E
+!AIVDM,2,2,4,A,88888888880,2*20
+{"to_port":20,"rxtime":"1929:07:28T05:22:06Z","eta_hour":5,"epfd":"GPS","draught":115,"eta_month":7,"mmsi":368685000,"repeat":0,"shipname":"APL KOREA           ","shiptype":"Cargo, all ships of this type","destination":"SAN PEDRO           ","to_bow":189,"to_starboard":20,"imo_id":9074535,"eta_day":27,"msgtype":5,"dte":0,"to_stern":88,"eta_minute":0,"ais_version":0}

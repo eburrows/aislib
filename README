@@ -1,0 +1,59 @@
+This is a set of programs and libraries to work with AIS data.
+
+Created by: Erik G. Burrows: erik@erikburrows.com
+
+These source files are licensed under the GPL. See COPYING file for details.
+
+
+Programs:
+
+
+com.erikburrows.ais.nmea2udp
+    Connects to a GPSd process (attached to a serial AIS device presumably),
+    and sends each NMEA string to a specified UDP host/port.
+
+    Usage: java com.erikburrows.aisparselib.nmea2udp -gpsdhost <host> -gpsdport <port> -gatewayhost <host> -gatewayport <port> [-debug] [-avdo]
+
+
+com.erikburrows.ais.udp2nmea
+    Listens for UDP packets such as from nmea2udp, and allows TCP clients to
+    connect, and receive the feed. Allows for caching history, which allows
+    a client to come "up to speed" quickly.
+
+    Usage: java com.erikburrows.ais.udp2nmea -udpport <port> -tcpport <port> [-buffer <size>]
+
+
+com.erikburrows.ais.nmea2mysql
+    Connects to a GPSd process, and logs each  parsed message to a MySQL
+    database.
+
+    Usage: java com.erikburrows.aisparselib.nmea2mysql -gpsdhost <host> -gpsdport <port> -mysqlurl <url> -mysqluser <user> -mysqlpassword <password> [-debug]
+
+
+com.erikburrows.ais.serial2mysql
+    Connects to a serial port using the RXTX library, and logs each  parsed message to a MySQL
+    database.
+
+    Usage: java com.erikburrows.aisparselib.nmea2mysql -serial <device> -speed <speed> -mysqlurl <url> -mysqluser <user> -mysqlpassword <password> [-debug]
+
+
+com.erikburrows.ais.generate_mysql_schema
+    Generates the table creation commands to build a MySQL database for
+    use with the nmea2mysql process.
+
+    Usage: java com.erikburrows.aisparselib.generate_mysql_schema | mysql
+
+    *A pre-generated outputfile is included at the top-level of this archive, named mysql.sql
+
+
+Library Classes:
+
+com.erikburrows.ais.Parser: Parses AIS NMEA sentances into Station objects.
+
+com.erikburrows.ais.Station: Represents an AIS station, from a message, or series of AIS messages.
+
+com.erikburows.ais.Trackpoint: A simple class containing a latitude and longitude field.
+
+com.erikburrows.ais.NmeaTcpReader: A thread-extending class that will connect to a GPSd daemon, or udp2nmea process to get AIS data, feed it to Parser, and send the parsed messages (as Station objects) to a consumer.
+
+com.erikburrows.ais.AISConsumer: An interface defining the callback functions needed for a class to be a consumer for the NmeaTcpReader.

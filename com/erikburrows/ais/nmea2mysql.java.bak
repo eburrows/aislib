@@ -1,0 +1,398 @@
+/*
+ *
+ *    Copyright (C) 2008  Erik G. Burrows
+ *
+ *    This program is free software; you can redistribute it and/or modify
+ *    it under the terms of the GNU General Public License as published by
+ *    the Free Software Foundation; either version 2 of the License, or
+ *    (at your option) any later version.
+ *
+ *    This program is distributed in the hope that it will be useful,
+ *    but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *    GNU General Public License for more details.
+ *
+ *    You should have received a copy of the GNU General Public License
+ *    along with this program; if not, write to the Free Software
+ *    Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
+ *
+ *
+ */
+
+package com.erikburrows.ais;
+
+import java.net.*;
+import java.io.*;
+import java.sql.*;
+import com.mysql.jdbc.*;
+import com.erikburrows.ais.Parser;
+import com.erikburrows.ais.Station;
+import java.sql.CallableStatement;
+
+/**
+ * AIS Gateway Program
+ *
+ * Connects to gpsd port, sends "r+" raw NMEA command. Then listens for NMEA strings,
+ * parses them and writes them to a MySQL database.
+ *
+ * Usage: java com.erikburrows.aisparselib.nmea2udp -gpsdhost <host> -gpsdport <port> -mysqlurl <url> -mysqluser <user> -mysqlpassword <password> [-debug]
+ */
+public class nmea2mysql {
+
+    /**
+     * Display command-line usage
+     */
+    public static void usage() {
+	System.out.println("Usage: java com.erikburrows.aisparselib.nmea2udp -gpsdhost <host> -gpsdport <port> -mysqlurl <url> -mysqluser <user> -mysqlpassword <password> [-debug]");
+
+	System.exit(0);
+    }
+
+    /**
+     * main() function for command-line starting
+     */
+    public static void main(String args[]) throws Exception {
+	String gpsd_hostname = null;
+	int gpsd_port = 2947;
+	Socket gpsd_socket = null;
+	String nmea_sentance = null;
+	BufferedReader gpsdBufferedReader;
+	PrintStream gpsd_output_stream;
+	Boolean debug = false;
+	Boolean do_avdo = false;
+
+	String mysql_url = null;
+	String mysql_user = null;
+	String mysql_password = null;
+
+	if (args.length == 0 || args[0].equals("-h") || args[0].equals("--help")) {
+	    usage();
+	}
+
+	// Parse the command line
+	for (int i = 0; i < args.length; ++i) {
+	    if (args[i].equalsIgnoreCase("-gpsdhost")) {
+		if (args.length > i + 1) {
+
+		    gpsd_hostname = args[i + 1];
+
+		    i = i + 1;
+		} else {
+		    System.out.println("No GPSd hostname specified.");
+		}
+	    } else if (args[i].equalsIgnoreCase("-gpsdport")) {
+		if (args.length > i + 1) {
+
+		    gpsd_port = Integer.parseInt(args[i + 1]);
+
+		    i = i + 1;
+		} else {
+		    System.out.println("No GPSd port specified.");
+		}
+
+
+	    } else if (args[i].equalsIgnoreCase("-mysqlurl")) {
+		if (args.length > i + 1) {
+
+		    mysql_url = args[i + 1];
+
+		    i = i + 1;
+		} else {
+		    System.out.println("No mysql hostname specified.");
+		}
+	    } else if (args[i].equalsIgnoreCase("-mysqluser")) {
+		if (args.length > i + 1) {
+
+		    mysql_user = args[i + 1];
+
+		    i = i + 1;
+		} else {
+		    System.out.println("No mysql hostname specified.");
+		}
+	    } else if (args[i].equalsIgnoreCase("-mysqlpassword")) {
+		if (args.length > i + 1) {
+
+		    mysql_password = args[i + 1];
+
+		    i = i + 1;
+		} else {
+		    System.out.println("No mysql hostname specified.");
+		}
+	    } else if (args[i].equalsIgnoreCase("-avdo")) {
+
+		do_avdo = true;
+
+	    } else if (args[i].equalsIgnoreCase("-debug")) {
+		debug = true;
+	    }
+	}
+
+	if (debug)
+	    System.out.println("Tunneling from " + gpsd_hostname + ":" + gpsd_port + " to " + mysql_url);
+
+
+	//Register the JDBC driver for MySQL.
+	Class.forName("com.mysql.jdbc.Driver");
+
+	java.sql.Connection con = null;
+
+	while(con == null) {
+	    try {
+		con = DriverManager.getConnection(mysql_url, mysql_user, mysql_password);
+	    } catch (com.mysql.jdbc.exceptions.jdbc4.CommunicationsException e) {
+		Thread.sleep(1000);
+		System.out.println("Connection to MySQL server failed, retrying.");
+	    }
+	}
+	
+	while(gpsd_socket == null) {
+	    try {
+		gpsd_socket = new Socket(gpsd_hostname, gpsd_port);
+	    } catch (java.net.ConnectException e) {
+		Thread.sleep(1000);
+		System.out.println("Connection to GPSd failed, retrying.");
+	    }
+	}
+
+	gpsdBufferedReader = new BufferedReader(new InputStreamReader(gpsd_socket.getInputStream()));
+	gpsd_output_stream = new PrintStream(gpsd_socket.getOutputStream());
+	    
+	// Put the gpsd server into "raw" NMEA mode
+	gpsd_output_stream.println("r+");
+
+	Parser parser = new Parser();
+	Station station;
+	    
+	java.sql.PreparedStatement insert_msg1 = con.prepareStatement("insert into ais_msg1_dynamic_info (message_type, repeat_count, source_mmsi, navigational_status, rate_of_turn, speed_over_ground, position_accuracy, longitude, latitude, course_over_ground, true_heading, utc, maneuver, raim_flag, spare) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+	java.sql.PreparedStatement insert_msg2 = con.prepareStatement("insert into ais_msg2_dynamic_info (message_type, repeat_count, source_mmsi, navigational_status, rate_of_turn, speed_over_ground, position_accuracy, longitude, latitude, course_over_ground, true_heading, utc, maneuver, raim_flag, spare) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+	java.sql.PreparedStatement insert_msg3 = con.prepareStatement("insert into ais_msg3_dynamic_info (message_type, repeat_count, source_mmsi, navigational_status, rate_of_turn, speed_over_ground, position_accuracy, longitude, latitude, course_over_ground, true_heading, utc, maneuver, raim_flag, spare) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+	java.sql.PreparedStatement insert_msg4 = con.prepareStatement("insert into ais_msg4_station_info (message_type, repeat_count, source_mmsi, utc_year, utc_month, utc_day, utc_hour, utc_minute, utc_second, position_accuracy, longitude, latitude, fix_device_type, raim_flag, spare) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+	java.sql.PreparedStatement insert_msg5 = con.prepareStatement("insert into ais_msg5_static_info (message_type, repeat_count, source_mmsi, ais_version, imo_number, callsign, name, ship_cargo_type, length_fore, length_aft, width_port, width_starboard, fix_device_type, eta_month, eta_day, eta_hour, eta_minute, draught, destination, dte, spare) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+
+	while(true) {
+	    try {
+		nmea_sentance = gpsdBufferedReader.readLine();
+
+		if (nmea_sentance.startsWith("!AIVDM") || (do_avdo && nmea_sentance.startsWith("!AIVDO"))) {
+		
+		    station = parser.parse(nmea_sentance);
+
+		    if (debug)
+			System.out.println("(" + station.messageType + ", " + station.get("sourceMmsi") + ") " + nmea_sentance);
+
+		    if (station != null && station.sql_name != null) {
+			
+			String[] legend = station.pattern;
+
+			String sql_values = "";
+			String sql_tokens = "";
+			for(int i = 0; i < legend.length; ++i) {
+			    String[] parts = legend[i].split(":");
+			    String field_name = parts[0];
+			    String field_type = parts[1];
+			    String field_length = parts[2];
+
+			    if (field_length.indexOf(",") != -1) {
+				String lengthParts[] = parts[2].split(",");
+				field_length = lengthParts[1];
+			    }
+
+			    if (field_name.equals("repeat")) {
+				field_name = "rpt";
+			    }
+
+			    field_name = field_name.replace(".", "_");
+
+			    if (field_type.equals("sql_name")) continue;
+
+			    sql_values += field_name + ", ";
+			    sql_tokens += "?, ";
+			    
+			}
+
+			sql_values = sql_values.substring(0, sql_values.length() - 2);
+			sql_tokens = sql_tokens.substring(0, sql_tokens.length() - 2);
+
+			String sql = "insert into " + station.sql_name + "(" + sql_values + ") values (" + sql_tokens + ")";
+
+			//System.out.println(sql);
+
+			java.sql.PreparedStatement stmt = con.prepareStatement(sql);
+
+
+			for(int i = 0; i < legend.length; ++i) {
+			    String[] parts = legend[i].split(":");
+			    String field_name = parts[0];
+			    String field_type = parts[1];
+			    String field_length = parts[2];
+
+			    if (field_type.equals("sql_name")) continue;
+
+			    if (field_type.equals("int")) {
+				stmt.setInt(i, (Integer)station.get(field_name));
+			    } else if (field_type.equals("string")) {
+				stmt.setString(i, (String)station.get(field_name));
+			    } else if (field_type.equals("float")) {
+				stmt.setFloat(i, (Float)station.get(field_name));
+			    } else if (field_type.equals("data")) {
+				stmt.setString(i, (String)station.get(field_name));
+			    }
+			}
+
+			stmt.execute();
+
+			/*
+
+			switch(station.messageType) {
+			case 1:
+			    if (debug)
+				System.out.println("(" + station.messageType + ", " + station.get("sourceMmsi") + ") " + nmea_sentance);
+
+			    insert_msg1.setInt(1, station.messageType);
+			    insert_msg1.setInt(2, (Integer)station.get("repeat"));
+			    insert_msg1.setInt(3, (Integer)station.get("sourceMmsi"));
+			    insert_msg1.setInt(4, (Integer)station.get("navigationalStatus"));
+			    insert_msg1.setInt(5, (Integer)station.get("rateOfTurn"));
+			    insert_msg1.setInt(6, (Integer)station.get("speedOverGround"));
+			    insert_msg1.setInt(7, (Integer)station.get("positionAccuracy"));
+			    insert_msg1.setFloat(8, (Float)station.get("longitude"));
+			    insert_msg1.setFloat(9, (Float)station.get("latitude"));
+			    insert_msg1.setFloat(10, (Float)station.get("courseOverGround"));
+			    insert_msg1.setInt(11, (Integer)station.get("trueHeading"));
+			    insert_msg1.setInt(12, (Integer)station.get("UTC"));
+			    insert_msg1.setInt(13, (Integer)station.get("maneuver"));
+			    insert_msg1.setInt(14, (Integer)station.get("raimFlag"));
+			    insert_msg1.setInt(15, (Integer)station.get("spare"));
+			    insert_msg1.execute();
+			    break;
+
+
+			case 2:
+			    if (debug)
+				System.out.println("(" + station.messageType + ", " + station.get("sourceMmsi") + ") " + nmea_sentance);
+
+			    insert_msg2.setInt(1, station.messageType);
+			    insert_msg2.setInt(2, (Integer)station.get("repeat"));
+			    insert_msg2.setInt(3, (Integer)station.get("sourceMmsi"));
+			    insert_msg2.setInt(4, (Integer)station.get("navigationalStatus"));
+			    insert_msg2.setInt(5, (Integer)station.get("rateOfTurn"));
+			    insert_msg2.setInt(6, (Integer)station.get("speedOverGround"));
+			    insert_msg2.setInt(7, (Integer)station.get("positionAccuracy"));
+			    insert_msg2.setFloat(8, (Float)station.get("longitude"));
+			    insert_msg2.setFloat(9, (Float)station.get("latitude"));
+			    insert_msg2.setFloat(10, (Float)station.get("courseOverGround"));
+			    insert_msg2.setInt(11, (Integer)station.get("trueHeading"));
+			    insert_msg2.setInt(12, (Integer)station.get("UTC"));
+			    insert_msg2.setInt(13, (Integer)station.get("maneuver"));
+			    insert_msg2.setInt(14, (Integer)station.get("raimFlag"));
+			    insert_msg2.setInt(15, (Integer)station.get("spare"));
+			    insert_msg2.execute();
+			    break;
+
+
+			case 3:
+			    if (debug)
+				System.out.println("(" + station.messageType + ", " + station.get("sourceMmsi") + ") " + nmea_sentance);
+
+			    insert_msg3.setInt(1, station.messageType);
+			    insert_msg3.setInt(2, (Integer)station.get("repeat"));
+			    insert_msg3.setInt(3, (Integer)station.get("sourceMmsi"));
+			    insert_msg3.setInt(4, (Integer)station.get("navigationalStatus"));
+			    insert_msg3.setInt(5, (Integer)station.get("rateOfTurn"));
+			    insert_msg3.setInt(6, (Integer)station.get("speedOverGround"));
+			    insert_msg3.setInt(7, (Integer)station.get("positionAccuracy"));
+			    insert_msg3.setFloat(8, (Float)station.get("longitude"));
+			    insert_msg3.setFloat(9, (Float)station.get("latitude"));
+			    insert_msg3.setFloat(10, (Float)station.get("courseOverGround"));
+			    insert_msg3.setInt(11, (Integer)station.get("trueHeading"));
+			    insert_msg3.setInt(12, (Integer)station.get("UTC"));
+			    insert_msg3.setInt(13, (Integer)station.get("maneuver"));
+			    insert_msg3.setInt(14, (Integer)station.get("raimFlag"));
+			    insert_msg3.setInt(15, (Integer)station.get("spare"));
+			    insert_msg3.execute();
+			    break;
+
+
+			case 4:
+			    if (debug)
+				System.out.println("(" + station.messageType + ", " + station.get("sourceMmsi") + ") " + nmea_sentance);
+
+			    insert_msg4.setInt(1, station.messageType);
+			    insert_msg4.setInt(2, (Integer)station.get("repeat"));
+			    insert_msg4.setInt(3, (Integer)station.get("sourceMmsi"));
+			    insert_msg4.setInt(4, (Integer)station.get("utcYear"));
+			    insert_msg4.setInt(5, (Integer)station.get("utcMonth"));
+			    insert_msg4.setInt(6, (Integer)station.get("utcDay"));
+			    insert_msg4.setInt(7, (Integer)station.get("utcHour"));
+			    insert_msg4.setInt(8, (Integer)station.get("utcMinute"));
+			    insert_msg4.setInt(9, (Integer)station.get("utcSecond"));
+			    insert_msg4.setInt(10, (Integer)station.get("positionAccuracy"));
+			    insert_msg4.setFloat(11, (Float)station.get("longitude"));
+			    insert_msg4.setFloat(12, (Float)station.get("latitude"));
+			    insert_msg4.setInt(13, (Integer)station.get("fixDeviceType"));
+			    insert_msg4.setInt(14, (Integer)station.get("raimFlag"));
+			    insert_msg4.setInt(15, (Integer)station.get("spare"));
+			    insert_msg4.execute();
+			    break;
+
+
+			case 5:
+			    if (debug)
+				System.out.println("(" + station.messageType + ", " + station.get("name") + ") " + nmea_sentance);
+
+			    insert_msg5.setInt(1, station.messageType);
+			    insert_msg5.setInt(2, (Integer)station.get("repeat"));
+			    insert_msg5.setInt(3, (Integer)station.get("sourceMmsi"));
+			    insert_msg5.setInt(4, (Integer)station.get("aisVersion"));
+			    insert_msg5.setInt(5, (Integer)station.get("imoNumber"));
+			    insert_msg5.setString(6, (String)station.get("callSign"));
+			    insert_msg5.setString(7, (String)station.get("name"));
+			    insert_msg5.setInt(8, (Integer)station.get("shipCargoType"));
+			    insert_msg5.setInt(9, (Integer)station.get("lengthFore"));
+			    insert_msg5.setInt(10, (Integer)station.get("lengthAft"));
+			    insert_msg5.setInt(11, (Integer)station.get("widthPort"));
+			    insert_msg5.setInt(12, (Integer)station.get("widthStarboard"));
+			    insert_msg5.setInt(13, (Integer)station.get("fixDeviceType"));
+			    insert_msg5.setInt(14, (Integer)station.get("etaMonth"));
+			    insert_msg5.setInt(15, (Integer)station.get("etaDay"));
+			    insert_msg5.setInt(16, (Integer)station.get("etaHour"));
+			    insert_msg5.setInt(17, (Integer)station.get("etaMinute"));
+			    insert_msg5.setInt(18, (Integer)station.get("draught"));
+			    insert_msg5.setString(19, (String)station.get("destination"));
+			    insert_msg5.setInt(20, (Integer)station.get("dte"));
+			    insert_msg5.setInt(21, (Integer)station.get("spare"));
+			    insert_msg5.execute();
+			default:
+			    break;
+			}
+
+			*/
+		    }
+
+		}
+	    } catch (Exception e) {
+		System.out.println("Exception: " + e);
+	    }
+	}
+    }
+
+    public static String join(String[] parts, String delim) {
+	String out = "";
+
+	for(int i = 0; i < parts.length; ++i) {
+	    if (parts[i] != null) {
+		out += parts[i];
+
+		if (i < parts.length - 1) {
+		    out += delim;
+		}
+	    }
+	}
+	
+	return out;
+    }
+}

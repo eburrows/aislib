@@ -1,0 +1,11 @@
+!AIVDM,1,1,,A,15RTgt0PAso;90TKcjM8h6g208CQ,0*4A
+{"class"="AIS","msgtype":1,"repeat":0,"mmsi":371798000,"status":"Under way using engine","turn":fastleft,"speed":12.3,"accuracy":1,"lon":-123.3954,"lat":48.3816,"course":2240,"heading":215,"second":33,"regional":0,"radio":0}
+!AIVDM,1,1,,A,16SteH0P00Jt63hHaa6SagvJ087r,0*42
+{"class"="AIS","msgtype":1,"repeat":0,"mmsi":440348000,"status":"Under way using engine","turn":nan,"speed":0.0,"accuracy":0,"lon":-70.7582,"lat":43.0802,"course":934,"heading":511,"second":13,"regional":0,"radio":0}
+!AIVDM,1,1,,B,25Cjtd0Oj;Jp7ilG7=UkKBoB0<06,0*60
+{"class"="AIS","msgtype":2,"repeat":0,"mmsi":356302000,"status":"Under way using engine","turn":fastright,"speed":13.9,"accuracy":0,"lon":-71.6261,"lat":40.3924,"course":877,"heading":91,"second":41,"regional":0,"radio":0}
+!AIVDM,1,1,,A,38Id705000rRVJhE7cl9n;160000,0*40
+{"class"="AIS","msgtype":3,"repeat":0,"mmsi":563808000,"status":"Moored","turn":0,"speed":0.0,"accuracy":1,"lon":-76.3275,"lat":36.9100,"course":2520,"heading":352,"second":35,"regional":0,"radio":0}
+!AIVDM,2,1,4,A,55OVgj02:MnML=SSSS<50j0du8D6222222222216GaHDD5uU0LlhC`41A4Sp,0*6E
+!AIVDM,2,2,4,A,88888888880,2*20
+{"class"="AIS","msgtype":5,"repeat":0,"mmsi":368685000,"imo":9074535,"ais_version":0,"callsign":"WCX8883","shipname":"APL KOREA","shiptype":"Cargo - all ships of this type","to_bow":189,"to_stern":88,"to_port":20,"to_starboard":20,"epfd":"GPS","eta":07-27T05:00Z,"draught":11.5,"destination":"SAN PEDRO","dte":0}
